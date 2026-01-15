@@ -2,7 +2,7 @@
 
 import { prismaClient } from "@/lib/prismaClient";
 import { currentUser } from "@clerk/nextjs/server"
-import { profile } from "console";
+// import { profile } from "console";
 
 export async function getAuthenticatedUser() {
   try {
