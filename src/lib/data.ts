@@ -106,3 +106,7 @@ export const potentialCustomer = [
   },
 ]
 
+
+export const subscriptionPriceId = 'price_1SrJjrHxnLpsdH8ilDIuKGb9';
+
+

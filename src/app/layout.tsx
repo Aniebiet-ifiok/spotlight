@@ -6,6 +6,7 @@ import {
 } from '@clerk/nextjs'
 
 import "./globals.css";
+import { Toaster } from "sonner";
 
 
 const manrope = Manrope({
@@ -37,7 +38,9 @@ export default function RootLayout({
             defaultTheme="system"
             enableSystem
             disableTransitionOnChange
-          ></ThemeProvider>
+          >
+            <Toaster />
+          </ThemeProvider>
         {children}
       </body>
     </html>

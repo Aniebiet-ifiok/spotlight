@@ -9,24 +9,28 @@ import { Button } from '../../ui/button'
 import { ArrowLeft, Zap } from 'lucide-react'
 import Purpleicon from './Purpleicon/index'
 import CreateWebinarButton from '../CreateWebinarButton'
+import Stripe from 'stripe'
+import StripeElements from '../stripe/Element'
+import SubscriptionModal from '../SubscriptionModal'
 
 type Props = {
   user: User | null;
+  stripeProducts: Stripe.Product[] | []
 };
 
 
 // TODO: STRIPE SUBSCRIPTION, assistant, 
-const Header = ({ user }: Props) => {
+const Header = ({ user, stripeProducts }: Props) => {
   const pathname = usePathname();
   const router = useRouter();
 
   return (
-    <div className="w-full px-4 pt-10 sticky top-0 z-10 flex justify-between items-center flex-wrap gap-4 bg-background">
+    <div className="w-full px-4 pt-10 pb-10 sticky top-0 z-10 flex justify-between items-center flex-wrap gap-4 bg-background">
       {pathname.includes("pipeline") ? (
         <Button
           className="bg-primary/10 border border-border rounded-xl"
           variant={"outline"}
-          onClick={() => router.push("/webinar")}
+          onClick={() => router.push("/webinars")}
         >
           <ArrowLeft /> Back to Webinars
         </Button>
@@ -37,13 +41,21 @@ const Header = ({ user }: Props) => {
       )}
 
   {/* TODO: bUILD STRIPE SUBSCRIPTION AND CREATE WEBINAR  */}
-      <div className="flex gap-6 items-center flex-wrap">
-        <Purpleicon>
-                <Zap className="w-6 h-6 text-white" />
-        </Purpleicon>
+     <div className="flex gap-6 items-center flex-wrap">
+  <Purpleicon>
+    <Zap className="w-6 h-6 text-white" />
+  </Purpleicon>
 
-        <CreateWebinarButton />
-      </div>
+  {user?.subscription ? (
+    <CreateWebinarButton stripeProducts={stripeProducts} />
+  ) : (
+    <StripeElements>
+      <SubscriptionModal user={user}/>
+    </StripeElements>
+  )
+  }
+</div>
+
     </div>
   );
 };

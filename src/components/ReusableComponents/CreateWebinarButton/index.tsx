@@ -1,41 +1,69 @@
-"use client"
+"use client";
 
-import React, {useState} from "react"
+import React, { useState } from "react";
 import {
   Dialog,
   DialogTrigger,
   DialogContent,
-  DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Plus } from "lucide-react"
-import { useWebinarStore } from "@/store/eWebinarStore"
-import MultiStepForm from "./MultiStepForm"
-import BasicInfoStep from "./BasicInfoStep"
+} from "@/components/ui/dialog";
+import { Plus } from "lucide-react";
+import { useWebinarStore } from "@/store/useWebinarStore";
+import MultiStepForm from "./MultiStepForm";
+import BasicInfoStep from "./BasicInfoStep";
+import CTAStep from "./CTAStep";
+import AdditionalInfoStep from "./additionalInfoStep";
+import Stripe from "stripe";
 
-type Props = {}
+type Props = {
+  stripeProducts: Stripe.Product[] | []
+};
 
-const CreateWebinarButton: React.FC<Props> = () => {
-  const { isModalOpen, setModalOpen,  isComplete, setComplete, isSubmitting, setSubmitting } = useWebinarStore()
-  const [webinarLink, setWebinarLink] = useState('')
+const CreateWebinarButton = ({stripeProducts}: Props) => {
+  const {
+    isModalOpen,
+    setModalOpen,
+    isComplete,
+    setComplete,
+  } = useWebinarStore();
+
+  const [webinarLink, setWebinarLink] = useState("");
+
   const steps = [
-   {
-     id: 'basicInfo',
-    title: 'Basic Information',
-    description: 'Please fill out the standard info needed for your webinar',
-    component: <BasicInfoStep/>
-   },
-  ]
+    {
+      id: "basicInfo",
+      title: "Basic Information",
+      description: "Please fill out the standard info needed for your webinar",
+      component: <BasicInfoStep />,
+    },
+
+     {
+      id: "cta",
+      title: "CTA",
+      description: "Please provide the end-point for your customer through your webinar",
+      component:  <CTAStep 
+      assistants={[]}
+      stripeProducts={stripeProducts}
+      />
+    },
+
+
+      {
+      id: "additionalInfo",
+      title: "Additional Information",
+      description: "Please fill information about additional options if neccessary",
+      component:  <AdditionalInfoStep
+      />
+    },
+  ];
 
   const handleComplete = (webinarId: string) => {
-  setComplete(true)
-  setWebinarLink(
-    `${process.env.Next_PUBLICBASE_URL}/live-webinar/${webinarId}`
-  )
-  }
+    setComplete(true);
 
-
-
+    setWebinarLink(
+      `${process.env.NEXT_PUBLIC_BASE_URL}/live-webinar/${webinarId}`
+    );
+  };
 
   return (
     <Dialog open={isModalOpen} onOpenChange={setModalOpen}>
@@ -48,7 +76,6 @@ const CreateWebinarButton: React.FC<Props> = () => {
             bg-primary/10 backdrop-blur-sm
             text-sm font-normal text-primary
             hover:bg-primary/20
-            hover:cursor-pointer
             transition
           "
         >
@@ -57,27 +84,28 @@ const CreateWebinarButton: React.FC<Props> = () => {
         </button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-[900px] p-0 bg-transparent border-none ">
-     
-           {isComplete ? (
-             <div className="bg-muted text-primary rounded-lg overflow-hidden">
-                <DialogTitle className="sr-only"> Webinar Created </DialogTitle>
-                {/* SuccessStep */}
-             </div>   
-    ) : (
-       <>
-       <DialogTitle className="sr-only">Create Webinar </DialogTitle>
-       <MultiStepForm
-       steps={steps}
-       onComplete={handleComplete} />
-       </>  
-    )}
-       
-
-        {/* Webinar form goes here */}
+      <DialogContent className="sm:max-w-[900px] p-0 bg-transparent border-none">
+        {isComplete ? (
+          <div className="bg-muted text-primary rounded-lg overflow-hidden">
+            <DialogTitle className="sr-only">
+              Webinar Created
+            </DialogTitle>
+            {/* SuccessStep */}
+          </div>
+        ) : (
+          <>
+            <DialogTitle className="sr-only">
+              Create Webinar
+            </DialogTitle>
+            <MultiStepForm
+              steps={steps}
+              onComplete={handleComplete}
+            />
+          </>
+        )}
       </DialogContent>
     </Dialog>
-  )
-}
+  );
+};
 
-export default CreateWebinarButton
+export default CreateWebinarButton;

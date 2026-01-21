@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Sidebar from "@/components/ReusableComponents/LayoutComponents/Sidebar";
 import Header from "@/components/ReusableComponents/LayoutComponents/Header";
 import { getAuthenticatedUser } from "@/actions/auth";
+import { getAllProductsFromStripe } from "@/actions/stripe";
 
 type Props = { children: ReactNode };
 
@@ -14,14 +15,17 @@ const Layout = async ({ children }: Props) => {
     redirect("/sign-in");
   }
 
-  // Pass the actual user object to Header
+  const stripeProductsData = await getAllProductsFromStripe();
+  const stripeProducts = stripeProductsData?.products ?? [];
+
   return (
     <div className="flex w-full min-h-screen">
       <Sidebar />
       <div className="flex flex-col w-full h-screen overflow-auto px-4 container mx-auto">
-        {/* HEADER */}
-        <Header user={auth.User ?? null} />
-        {children}
+        <Header user={auth.User ?? null} stripeProducts={stripeProducts}/>
+        <div className="flex-1 py-10">
+          {children}
+        </div>
       </div>
     </div>
   );

@@ -11,6 +11,7 @@ import {
   TooltipContent,
 } from "@/components/ui/tooltip";
 import { UserButton } from "@clerk/nextjs";
+import { UserButtonWrapper } from "@/components/UserButtonWrapper";
 
 type Props = {
   children?: React.ReactNode;
@@ -72,7 +73,7 @@ const Sidebar = ({ children }: Props) => {
 
         {/* USER PROFILE */}
         <div className="mt-auto">
-          <UserButton />
+         <UserButtonWrapper />
         </div>
       </aside>
 
