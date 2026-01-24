@@ -1,8 +1,7 @@
 "use server"
 
 import { prismaClient } from "@/lib/prismaClient";
-import { currentUser } from "@clerk/nextjs/server"
-// import { profile } from "console";
+import { currentUser } from "@clerk/nextjs/server";
 
 export async function getAuthenticatedUser() {
   try {
@@ -12,11 +11,18 @@ export async function getAuthenticatedUser() {
       return { status: 403 };
     }
 
-    const userExists = await prismaClient.user.findUnique({
+    // Check if user exists in your DB
+    let userExists = await prismaClient.user.findUnique({
       where: { clerkId: user.id },
     });
 
     if (userExists) {
+      // Update lastLoginAt whenever user logs in
+      userExists = await prismaClient.user.update({
+        where: { clerkId: user.id },
+        data: { lastLoginAt: new Date() },
+      });
+
       return { status: 200, user: userExists };
     }
 
@@ -25,14 +31,11 @@ export async function getAuthenticatedUser() {
       data: {
         clerkId: user.id,
         email: user.emailAddresses[0]?.emailAddress,
-        name:  user.firstName + " " + user.lastName,
+        name: `${user.firstName} ${user.lastName}`,
         profileImage: user.imageUrl,
+        lastLoginAt: new Date(), // Set first login time
       },
     });
-
-    if (!newUser) {
-      return { status: 500, message: "Failed to create user" };
-    }
 
     return { status: 201, user: newUser };
   } catch (err) {

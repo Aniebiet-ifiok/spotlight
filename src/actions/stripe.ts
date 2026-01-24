@@ -11,9 +11,10 @@ import { PrismaClient } from "@prisma/client"
 export const getAllProductsFromStripe =  async () => {
     try {
        const currentUser = await getAuthenticatedUser()
-       if(!currentUser.user){
-        return {status: 401, message: 'authorized'}
-       } 
+       
+    console.log('getAuthenticatedUser result 👉', currentUser);
+
+        if (!currentUser.user) throw new Error('Not logged in');
        const stripeProducts = await stripe.products.list(
         {},
         {
@@ -33,56 +34,36 @@ export const getAllProductsFromStripe =  async () => {
 }
 
 
-export const onGetStripeClientSecret = async (email: string, userId: string) => {
-    try {
-        let customer: Stripe.Customer
-        const existingCustomers = await stripe.customers.list({ email: email })
-        if(existingCustomers.data.length > 0 ){
-            customer = existingCustomers.data[0]
-        } else{
-           customer = await stripe.customers.create({
-            email: email,
-            metadata: {
-                userId: userId,
-            },
-           })
-        }
 
-        await prismaClient.user.update({
-            where: { id: userId},
-            data: {
-                stripeCustomerId: customer.id,
-            },
-        })
+export async function onGetStripeClientSecret(email: string, userId: string) {
+  try {
+    // 1️⃣ Find existing customer
+    let customers = await stripe.customers.list({ email });
+    let customer = customers.data[0];
 
-
-        const subscription = await stripe.subscriptions.create({
-            customer: customer.id,
-            items: [{price: subscriptionPriceId}],
-            payment_behavior: 'default_incomplete',
-            expand: ['latest_invoice.payment_intent'],
-            metadata: {
-                userId: userId,
-            },
-        })
-
-
-        const paymentIntent = (subscription.latest_invoice as Stripe.Invoice)
-              .payment_intent as Stripe.PaymentIntent;
-
-              return {
-                status: 200,
-                secret: paymentIntent.client_secret,
-                customerId: customer.id
-              }
-    } catch (error) {
-        console.error('subscription creation error:', error)
-        return {
-            status: 400,
-            message: 'Failed to create subscription'
-        }
+    if (!customer) {
+      customer = await stripe.customers.create({
+        email,
+        metadata: { userId },
+      });
     }
+
+   const paymentIntent = await stripe.paymentIntents.create({
+      amount: 5000, // amount in cents, e.g., $50
+      currency: 'usd',
+      receipt_email: email,
+      metadata: {
+        userId,
+      },
+    });
+
+    return { secret: paymentIntent.client_secret };
+  } catch (error: any) {
+    console.log('Stripe intent response error:', error.message);
+    return { status: 400, message: error.message };
+  }
 }
+
 
 
 export const updateSubscription = async (subscription: Stripe.Subscription) => {
