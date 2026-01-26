@@ -70,10 +70,10 @@ export const updateSubscription = async (subscription: Stripe.Subscription) => {
     try {
         const   userId = subscription.metadata.userId
 
-        await PrismaClient.user.update({
+        await prismaClient.user.update({
             where: {id: userId},
             data: {
-                subscription: subscription.status === 'active' ? true : false,
+               subscription: subscription.status === 'active' ? true : false,
             },
         })
     } catch (error) {

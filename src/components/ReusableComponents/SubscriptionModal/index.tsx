@@ -18,6 +18,8 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 
+
+
 const SubscriptionModal = () => {
   const { user, isLoaded } = useUser();
   const stripe = useStripe();

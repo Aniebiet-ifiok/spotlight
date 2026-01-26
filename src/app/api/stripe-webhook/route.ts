@@ -8,7 +8,7 @@ import Stripe from "stripe";
 
 
 
-const STRIPE_SUBSCRIPTION_EVENTS = new set([
+const STRIPE_SUBSCRIPTION_EVENTS = new Set([
     'invoice.created',
     'invoice.finalized',
     'invoice.paid',
@@ -24,7 +24,7 @@ const getStripeEvent = async (
 ) : Promise<Stripe.Event> => {
     const webhookSecret =  process.env.STRIPE_WEBHOOK_SECRET
 
-    if(!sig || webhookSecret){
+    if(!sig || !webhookSecret){
         throw new Error('Stripe signatureor webhook secret missing')
     }
 
