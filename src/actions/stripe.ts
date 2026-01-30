@@ -6,6 +6,7 @@ import Stripe from "stripe"
 import { prismaClient } from "@/lib/prismaClient"
 import { subscriptionPriceId } from "@/lib/data"
 import { PrismaClient } from "@prisma/client"
+import { changeAttendanceType } from "./attendance"
 
 
 export const getAllProductsFromStripe =  async () => {
@@ -80,4 +81,40 @@ export const updateSubscription = async (subscription: Stripe.Subscription) => {
          console.error('Error updating subscription:', error );
          
     }
+}
+
+
+export const createCheckoutLink = async (
+  priceId: string,
+  stripeAccountId: string,
+  attendeeId: string,
+  webinarId: string,
+  bookCall: boolean = false
+) => {
+  try {
+    const session = await stripe.checkout.sessions.create(
+      {
+        line_items: [{ price: priceId, quantity: 1 }],
+        mode: 'payment',
+        success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/success`,
+        cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/cancel`,
+        metadata: { attendeeId, webinarId },
+        payment_intent_data: {
+          transfer_data: {
+            destination: stripeAccountId,
+          },
+        },
+      },
+      { stripeAccount: stripeAccountId }
+    )
+
+    if (bookCall) {
+      await changeAttendanceType(attendeeId, webinarId, 'ADDED_TO_CART')
+    }
+
+    return { url: session.url }
+  } catch (error) {
+    console.error('Checkout error:', error)
+    throw new Error('Failed to create checkout session')
+  }
 }

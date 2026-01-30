@@ -14,7 +14,7 @@ type Props = {
 
 
 const Page = async ({ params }: Props) => {
-  const { webinarId } = params
+  const { webinarId } = await params
   const pipelineData = await getWebinarAttendance(webinarId)
 
   return (

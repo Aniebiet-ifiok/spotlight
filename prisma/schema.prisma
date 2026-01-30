@@ -70,6 +70,7 @@ model Attendee {
   updatedAt  DateTime       @updatedAt
   Attendance Attendance[]
   Webinar    Webinar[]
+
 }
 
 model Attendance {

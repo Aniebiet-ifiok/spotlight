@@ -47,19 +47,20 @@ const Sidebar = ({ children }: Props) => {
               return (
                 <Tooltip key={item.id}>
                   <TooltipTrigger asChild>
-                    <Link
-                      href={item.link}
-                      className={`
-                        flex items-center justify-center
-                        w-10 h-10 rounded-lg
-                        transition-colors
-                        ${isActive
-                          ? "iconBackground"
-                          : "hover:bg-muted text-muted-foreground"}
-                      `}
-                    >
-                      <Icon className="w-5 h-5" />
-                    </Link>
+                   <Link
+  href={item.link}
+  className={`
+    flex items-center justify-center
+    w-10 h-10 rounded-lg
+    transition-transform transition-colors duration-300 ease-out
+    ${isActive
+      ? "iconBackground"
+      : "hover:shadow-lg hover:scale-125 text-muted-foreground"}
+  `}
+>
+  <Icon className="w-5 h-5" />
+</Link>
+
                   </TooltipTrigger>
 
                   <TooltipContent side="right" sideOffset={8}>

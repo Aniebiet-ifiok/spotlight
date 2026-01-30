@@ -10,9 +10,13 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Form } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
 import { useAttendeeStore } from '@/store/useAttendeeStore'
 import { WebinarStatusEnum } from '@prisma/client'
+import { Loader2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import React, { useState } from 'react'
+import { toast } from 'sonner'
 
 type Props = {
   webinarId: string
@@ -25,15 +29,15 @@ const WaitListComponent = ({
   webinarStatus,
   onRegistered,
 }: Props) => {
-
-  const [name, setName] = useState(false)
-  const [email, setEmail] = useState(false)
+  // ✅ FIX: must be strings, not booleans
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
   const [isOpen, setIsOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
 
-
-  const {setAttendee } = useAttendeeStore()
+  const router = useRouter()
+  const { setAttendee } = useAttendeeStore()
 
   const buttonText = () => {
     switch (webinarStatus) {
@@ -47,32 +51,61 @@ const WaitListComponent = ({
     }
   }
 
-
   const handleSubmit = async (e: React.FormEvent) => {
-     e.preventDefault()
-     setIsSubmitting(true)
-     try {
-        const res = await  registerAttendee({
-            email,
-            name,
-            webinarId,
+    e.preventDefault()
+
+    if (!name || !email) {
+      toast.error('Please enter your name and email')
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      const res = await registerAttendee({
+        webinarId,
+        name,
+        email,
+      })
+
+      if (!res?.success) {
+        throw new Error(res?.message || 'Failed to register')
+      }
+
+      if (res.data?.user) {
+        setAttendee({
+          id: res.data.user.id,
+          name: res.data.user.name,
+          email: res.data.user.email,
+          callStatus: 'PENDING',
         })
+      }
 
-        if(!res.success){
-          throw new Error(res.message || 'Something went wrong')
+      toast.success(
+        webinarStatus === WebinarStatusEnum.LIVE
+          ? 'Successfully joined the webinar'
+          : 'Successfully registered for webinar'
+      )
+
+      setSubmitted(true)
+      setName('')
+      setEmail('')
+
+      setTimeout(() => {
+        setIsOpen(false)
+
+        // ✅ IMPORTANT: navigate into the live room
+        if (webinarStatus === WebinarStatusEnum.LIVE) {
+          router.push(`/webinars/${webinarId}/live`)
         }
 
-        if(res.data?.user){
-          setAttendee({
-            id: res.data.user.id,
-            name: res.data.user.name,
-            email: res.data.user.email,
-            callStatus: 'PENDING',
-          })
-        }
-     } catch (error) {
-        
-     }
+        if (onRegistered) onRegistered()
+      }, 1200)
+    } catch (error: any) {
+      toast.error(error.message || 'Something went wrong')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -92,23 +125,62 @@ const WaitListComponent = ({
         </Button>
       </DialogTrigger>
 
-      {/* ✅ DialogContent MUST wrap everything */}
-      <DialogContent
-        className="border-0"
-        isHideCloseButton
-      >
-        <DialogHeader className="justify-center items-center border-border border-input rounded-xl p-4 bg-background">
+      <DialogContent className="border-0" isHideCloseButton>
+        <DialogHeader className="items-center p-4">
           <DialogTitle className="text-lg text-center font-semibold mb-4">
             {webinarStatus === WebinarStatusEnum.LIVE
-            ? 'Join the webinar'
-        : 'Join the waitlist'}
+              ? 'Join the webinar'
+              : 'Join the waitlist'}
           </DialogTitle>
 
-          <Form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full "></Form>
-        </DialogHeader>
+          <Form
+            onSubmit={handleSubmit}
+            className="flex flex-col gap-4 w-full"
+          >
+            {!submitted && (
+              <>
+                <Input
+                  type="text"
+                  placeholder="Your Name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
 
-        {/* modal body goes here */}
-        {/* form / text / buttons */}
+                <Input
+                  type="email"
+                  placeholder="Your Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </>
+            )}
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isSubmitting || submitted}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="animate-spin mr-2" />
+                  {webinarStatus === WebinarStatusEnum.LIVE
+                    ? 'Joining...'
+                    : 'Registering...'}
+                </>
+              ) : submitted ? (
+                webinarStatus === WebinarStatusEnum.LIVE
+                  ? 'Redirecting to webinar...'
+                  : "You're on the waitlist"
+              ) : webinarStatus === WebinarStatusEnum.LIVE ? (
+                'Join'
+              ) : (
+                'Join Waitlist'
+              )}
+            </Button>
+          </Form>
+        </DialogHeader>
       </DialogContent>
     </Dialog>
   )

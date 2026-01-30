@@ -9,27 +9,30 @@ import { WebinarStatusEnum } from "@prisma/client"
 
 
 function combineDateTime(
-    date: Date,
+    date: string | Date,
     timeStr: string,
     timeFormat: 'AM' | 'PM'
 ): Date {
     const [hoursStr, minutesStr] = timeStr.split(':')
-    let hours = Number.parseInt(hoursStr, 10)
-    const minutes = Number.parseInt(minutesStr || '0', 10)
+    let hours = parseInt(hoursStr, 10)
+    const minutes = parseInt(minutesStr || '0', 10)
 
+    if (timeFormat === 'PM' && hours < 12) hours += 12
+    else if (timeFormat === 'AM' && hours === 12) hours = 0
 
-    if(timeFormat === 'PM' && hours < 12){
-        hours += 12
-    }else if (timeFormat === 'AM' && hours === 12){
-        hours = 0
+    let d: Date
+    if (typeof date === 'string') {
+        // Parse date string in YYYY-MM-DD format as local time
+        const [year, month, day] = date.split('-').map(Number)
+        d = new Date(year, month - 1, day, hours, minutes, 0, 0)
+    } else {
+        d = new Date(date)
+        d.setHours(hours, minutes, 0, 0)
     }
 
-
-
-    const result = new Date(date)
-    result.setHours(hours, minutes, 0, 0)
-    return result
+    return d
 }
+
 
 
 export const createWebinar = async(FormData: WebinarFormState) => {
@@ -71,13 +74,22 @@ const combinedDateTime = combineDateTime(
 
 const now = new Date()
 
+// Minimum buffer of 2 minutes
+const MIN_BUFFER_MINUTES = 2
+const minAllowedTime = new Date(now.getTime() + MIN_BUFFER_MINUTES * 60 * 1000)
 
-if (combinedDateTime < now){
-    return{
-        status: 400, 
-        message: 'webinar date and time cannot be in the past '
+console.log('Now:', now)
+console.log('Combined Webinar Time:', combinedDateTime)
+console.log('Minimum Allowed Time:', minAllowedTime)
+
+if (combinedDateTime < minAllowedTime) {
+    return {
+        status: 400,
+        message: `Webinar must start at least ${MIN_BUFFER_MINUTES} minutes in the future`
     }
 }
+
+
 
 
 

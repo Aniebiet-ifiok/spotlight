@@ -31,18 +31,18 @@ const Page = async ({params, searchParams}: Props) => {
     const checkUser = await getAuthenticatedUser();
 
     // TODO: CREATE API KEYS 
-    const apikey = 'process.env.STREAM_API_KEY' as string
+    const apikey = 'process.env.NEXT_PUBLIC_STREAM_PAPI_KEY' as string
     const token = 'process.env.STREAM_TOKEN' as string
     const callId = 'process.env.STREAM_CALL_ID' as string
 
   return (
     <div className='w-full min-h-screen mx-auto'>
         <RenderWebinar
+        error={error}
         apiKey={apikey}
         token={token}
         callId={callId}
-        checkUser={checkUser.user || null}
-        error={error}
+        user={checkUser.user || null}
         webinar={webinarData}
         
         />
