@@ -1,14 +1,15 @@
 'use client'
 
 import { WebinarWithPresenter } from '@/lib/type'
-import { ParticipantView, useCallStateHooks } from '@stream-io/video-react-sdk'
+import { ParticipantView, useCallStateHooks, StreamVideo, StreamVideoClient } from '@stream-io/video-react-sdk'
 import { StreamChat } from 'stream-chat'
 import { Chat, Channel, MessageList, MessageInput } from 'stream-chat-react'
 import { Button } from '@/components/ui/button'
 import { CtaTypeEnum } from '@prisma/client'
 import { MessageSquare, User } from 'lucide-react'
 import React, { useEffect, useState } from 'react'
-import CTADialogBox from './CTADialogBox' 
+import 'stream-chat-react/dist/css/v2/index.css'
+import CTADialogBox from './CTADialogBox'
 
 type Props = {
   showChat: boolean
@@ -32,48 +33,61 @@ const LiveWebinarView = ({
   const viewerCount = useParticipantCount()
   const hostParticipant = participants.length > 0 ? participants[0] : null
 
+  const [videoClient, setVideoClient] = useState<StreamVideoClient | null>(null)
   const [chatClient, setChatClient] = useState<StreamChat | null>(null)
   const [channel, setChannel] = useState<any>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // -------------------------
-  // Initialize Stream Chat
+  // Initialize Stream Video & Chat
   // -------------------------
   useEffect(() => {
-    let clientInstance: StreamChat | null = null
+    let chatInstance: StreamChat | null = null
+    let videoInstance: StreamVideoClient | null = null
 
-    const initChat = async () => {
+    const init = async () => {
       try {
-        // Fetch a user-specific token from your server
-        const res = await fetch(
-          `/api/stream-token?userId=${userId}&username=${username}`
-        )
+        const res = await fetch(`/api/stream-token?userId=${userId}&username=${username}&role=admin`)
+        if (!res.ok) throw new Error(`Failed to fetch token: ${res.status}`)
+
         const data = await res.json()
-        const token = data.token
+        const videoToken = data.videoToken
+        const chatToken = data.chatToken
 
-        if (!token) throw new Error('No token returned from server')
+        if (!videoToken) throw new Error('No video token returned from server')
+        if (!chatToken) throw new Error('No chat token returned from server')
 
-        clientInstance = StreamChat.getInstance(process.env.NEXT_PUBLIC_STREAM_API_KEY!)
-        await clientInstance.connectUser({ id: userId, name: username }, token)
-
-        const channelInstance = clientInstance.channel('livestream', webinar.id, {
-          name: webinar.title,
+        // Video client
+        videoInstance = new StreamVideoClient({
+          apiKey: process.env.NEXT_PUBLIC_STREAM_API_KEY!,
+          user: { id: userId, name: username },
+          token: videoToken,
         })
+        setVideoClient(videoInstance)
 
+        // Chat client
+        chatInstance = StreamChat.getInstance(process.env.NEXT_PUBLIC_STREAM_API_KEY!)
+        await chatInstance.connectUser({ id: userId, name: username }, chatToken)
+        const channelInstance = chatInstance.channel('livestream', webinar.id, { name: webinar.title })
         await channelInstance.watch()
-
-        setChatClient(clientInstance)
+        setChatClient(chatInstance)
         setChannel(channelInstance)
-      } catch (err) {
-        console.error('Failed to initialize chat:', err)
+
+        setLoading(false)
+      } catch (err: any) {
+        console.error('Failed to initialize live webinar:', err)
+        setError(err.message || 'Unknown error')
+        setLoading(false)
       }
     }
 
-    initChat()
+    init()
 
-    // Cleanup on unmount
     return () => {
-      if (clientInstance) clientInstance.disconnectUser()
+      chatInstance?.disconnectUser()
+      videoInstance?.disconnectUser?.()
     }
   }, [userId, username, webinar.id, webinar.title])
 
@@ -90,21 +104,22 @@ const LiveWebinarView = ({
     }
 
     channel.on(handleEvent)
-
-    return () => {
-      channel.off(handleEvent)
-    }
+    return () => channel.off(handleEvent)
   }, [chatClient, channel, isHost])
 
   // -------------------------
-  // CTA Button handler
+  // CTA Button
   // -------------------------
   const handleCTAButtonClick = async () => {
     if (!channel) return
     await channel.sendEvent({ type: 'open_cta_dialog' })
   }
 
-  if (!chatClient || !channel) return null
+  // -------------------------
+  // Render
+  // -------------------------
+  if (loading) return <div className="text-center mt-10">Loading live stream...</div>
+  if (error) return <div className="text-red-500 text-center mt-10">{error}</div>
 
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden bg-background text-foreground">
@@ -119,13 +134,11 @@ const LiveWebinarView = ({
             LIVE
           </div>
         </div>
-
         <div className="flex items-center space-x-3">
           <div className="flex items-center space-x-1 bg-muted/50 px-3 py-1 rounded-full">
             <User size={16} />
             <span className="text-sm">{viewerCount}</span>
           </div>
-
           <button
             onClick={() => setShowChat(!showChat)}
             className={`px-3 py-1 rounded-full text-sm flex items-center space-x-1 ${
@@ -138,24 +151,22 @@ const LiveWebinarView = ({
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Main */}
       <div className="flex flex-1 p-2 gap-2 overflow-hidden">
         {/* Video */}
         <div className="flex-1 rounded-lg overflow-hidden border border-border flex flex-col bg-card">
           <div className="flex-1 relative overflow-hidden">
             {hostParticipant ? (
-              <div className="w-full h-full">
-                <ParticipantView
-                  participant={hostParticipant}
-                  className="w-full h-full object-cover !max-w-full"
-                />
-              </div>
+              <ParticipantView
+                participant={hostParticipant}
+                className="w-full h-full object-cover !max-w-full"
+              />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-muted-foreground flex-col space-y-4">
                 <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center">
                   <User size={40} className="text-muted-foreground" />
                 </div>
-                <p>Waiting for Stream to Start...</p>
+                <p>Waiting for host to start the stream...</p>
               </div>
             )}
 
@@ -178,26 +189,44 @@ const LiveWebinarView = ({
         </div>
 
         {/* Chat Panel */}
-        {showChat && (
-          <Chat client={chatClient}>
-            <Channel channel={channel}>
-              <div className="w-80 bg-card border border-border rounded-lg overflow-hidden flex flex-col">
-                <div className="py-2 px-3 border-b border-border font-medium flex items-center justify-between">
-                  <span>Chat</span>
-                  <span className="text-xs bg-muted px-2 py-0.5 rounded-full">{viewerCount} Viewers</span>
-                </div>
-                <MessageList className="flex-1 overflow-auto" />
-                <MessageInput focus />
-              </div>
-            </Channel>
-          </Chat>
-        )}
+        {showChat && chatClient && channel && (
+  <Chat client={chatClient}>
+    <Channel channel={channel}>
+      <div
+        className="w-80 rounded-xl overflow-hidden flex flex-col shadow-lg"
+        style={{
+          backgroundImage: 'url("/images/abstract-green.jpg")',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          width: '100%',
+        }}
+      >
+        {/* Header */}
+        <div className="py-2 px-3 border-b border-white/30 font-medium flex items-center justify-between bg-white/10 backdrop-blur-sm text-white">
+          <span className="text-lg font-semibold">Live Chat</span>
+          <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">{viewerCount} Viewers</span>
+        </div>
+
+        {/* Messages */}
+        <MessageList
+          className="flex-1 overflow-auto p-2 space-y-2"
+          messageClassName="!bg-white/20 backdrop-blur-sm rounded-lg p-2 text-white"
+        />
+
+        {/* Input */}
+        <MessageInput
+          focus
+          className="border-t border-white/30 p-2 bg-white/10 text-white placeholder-white/70 rounded-b-xl"
+        />
+      </div>
+    </Channel>
+  </Chat>
+)}
+
       </div>
 
       {/* CTA Dialog */}
-      {dialogOpen && (
-        <CTADialogBox open={dialogOpen} onOpenCharge={setDialogOpen} webinar={webinar} userId={userId} />
-      )}
+      <CTADialogBox open={dialogOpen} onOpenChange={setDialogOpen} webinar={webinar} userId={userId} />
     </div>
   )
 }

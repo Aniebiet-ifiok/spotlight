@@ -1,55 +1,64 @@
 'use client'
 
-import { WebinarWithPresenter } from '@/lib/type'
-import { StreamCall, useStreamVideoClient } from '@stream-io/video-react-sdk'
+import {
+  StreamCall,
+  useStreamVideoClient,
+  Call,
+} from '@stream-io/video-react-sdk'
 import React, { useEffect, useState } from 'react'
 import LiveWebinarView from '../common/LiveWebinarView'
-
+import { WebinarWithPresenter } from '@/lib/type'
 
 type Props = {
-    username: string
-    callId: string
-    callType: string
-    webinar: WebinarWithPresenter
-    token: string
+  username: string
+  callId: string
+  callType: string
+  webinar: WebinarWithPresenter
+  userId: string
+  isHost: boolean
 }
 
-const CustomLiveStreamPlayer = ({username, callId, callType, webinar, token}: Props) => {
-        const client = useStreamVideoClient()
-const [call, setCall] = useState<call>()
-const [showChat, setShowChat] = useState(true)
+const CustomLiveStreamPlayer = ({
+  username,
+  callId,
+  callType,
+  webinar,
+  userId,
+  isHost,
+}: Props) => {
+  const client = useStreamVideoClient()
+  const [call, setCall] = useState<Call | null>(null)
+  const [showChat, setShowChat] = useState(true)
 
+  useEffect(() => {
+    if (!client) return
 
-useEffect(()=> {
-  if(!client) return 
-  const myCall =  client.call(callType, callId)
-  setCall(myCall)
-  myCall.join().catch((e) => {
-    console.error('failed to fetch call', e)
-  })
+    const myCall = client.call(callType, callId)
+    setCall(myCall)
 
-  return () => {
-    myCall.leave().catch((e) => {
-    console.error('failed to leave call', e)
-  })
- setCall(undefined)
-}
+    myCall
+      .join({ create: isHost })
+      .catch((e) => console.error('Join failed', e))
 
+    return () => {
+      myCall.leave().catch(() => {})
+    }
+  }, [client, callId, callType, isHost])
 
-}, [client, callId, callType])
+  if (!call) return null
 
-if(!call) return null
-   return <StreamCall   call={call}>
-    <LiveWebinarView
-    showChat={showChat}
-    setShowChat={setShowChat}
-    isHost={true}
-    username={username}
-    userId={process.env.NEXT_PUBLIC_STREAM_USER_ID}
-    userToken={token}
-    webinar={webinar}
-    />
-   </StreamCall>
+  return (
+    <StreamCall call={call}>
+      <LiveWebinarView
+        showChat={showChat}
+        setShowChat={setShowChat}
+        isHost={isHost}
+        username={username}
+        userId={userId}
+        webinar={webinar}
+      />
+    </StreamCall>
+  )
 }
 
 export default CustomLiveStreamPlayer

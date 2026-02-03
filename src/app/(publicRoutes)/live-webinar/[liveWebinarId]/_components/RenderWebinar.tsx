@@ -1,94 +1,92 @@
 'use client'
 
-import { Webinar, WebinarStatusEnum, User } from '@prisma/client' 
-import React, { useEffect } from 'react'
-import WebinarUpcomingState from './UpcomingWebinar/page'
-import { usePathname, useRouter } from 'next/navigation'
-import { useAttendeeStore } from '@/store/useAttendeeStore'
+import React, { useEffect, useState } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 import { toast } from 'sonner'
+import { StreamChat } from 'stream-chat'
+import { StreamVideo, StreamVideoClient } from '@stream-io/video-react-sdk'
+import { WebinarStatusEnum, User } from '@prisma/client'
+import WebinarUpcomingState from './UpcomingWebinar/page'
 import LiveStreamState from './LiveWebinar/LiveStreamState'
 import { WebinarWithPresenter } from '@/lib/type'
 
-type Props = {
-    error: string | undefined
-    user: User | null
-    webinar: WebinarWithPresenter
-    apiKey: string
-    token: string
-    callId: string
+type RenderWebinarProps = {
+  apiKey: string
+  chatToken: string
+  videoToken: string
+  callId: string
+  user: User | null
+  webinar: WebinarWithPresenter
+  error?: string
 }
 
-const RenderWebinar = ({error, user, webinar, apiKey, token, callId}: Props) => {
+const RenderWebinar: React.FC<RenderWebinarProps> = ({
+  apiKey,
+  chatToken,
+  videoToken,
+  callId,
+  user,
+  webinar,
+  error,
+}) => {
+  const router = useRouter()
+  const pathname = usePathname()
+  const [chatClient, setChatClient] = useState<StreamChat | null>(null)
+  const [videoClient, setVideoClient] = useState<StreamVideoClient | null>(null)
 
-    const router = useRouter()
-    const pathname = usePathname()
-
-    const { attendee } = useAttendeeStore()
-
-
-    useEffect(()=> {
-    if(error) {
-        toast.error(error)
-        router.push(pathname)
+  // Handle error notifications
+  useEffect(() => {
+    if (error) {
+      toast.error(error)
+      router.push(pathname)
     }
-    }, [error])
-   return(
-    <>
-    {/* TODO: Build a waiting room and live */}
-     {webinar.webinarStatus === WebinarStatusEnum.SCHEDULED ? (
-     <WebinarUpcomingState
-     webinar={webinar} 
-     currentUser={user || null} />
-    ) : webinar.webinarStatus === WebinarStatusEnum.WAITING_ROOM ? (
-     <WebinarUpcomingState
-     webinar={webinar} 
-     currentUser={user || null} />
-    ) : webinar.webinarStatus === WebinarStatusEnum.LIVE ? (
-        // TODO: Add live stream component and webinar stuff
-        <>
-         {user?.id === webinar.presenterId ? (
-            <LiveStreamState
-            apikey={apiKey}
-            token={token}
-            callId={callId}
-            webinar={webinar}
-            user={user}
-            />
-         ) : 
-         //TODO: only show the participant view if they're registered
-         attendee ? (
-            // <Participant
-            // apiKey={apiKey}
-            // token={token}
-            // callId={callId}
-            // />
-            'Livestream for participant'
-         ) : (
-            <WebinarUpcomingState
-            webinar={webinar}
-            currentUser={user || null}
-            />
-         )}
-        </>
-    ) : webinar.webinarStatus === WebinarStatusEnum.CANCELLED ? (
-      <div className="flex justify-center items-center h-full w-full">
-        <div className="text-center space-y-4">
-            <h3 className="text-2xl font-semibold text-primary">
-                {webinar?.title}
-            </h3>
-            <p className="text-muted-foreground text-xs">
-                This webinar has been cancelled.
-            </p>
-        </div>
-      </div>
-    ) : (
-       <WebinarUpcomingState
-            webinar={webinar}
-            currentUser={user || null}
-            />  
-    )}
-    </>
-   )
+  }, [error])
+
+  // Initialize Stream clients only if user is present
+  useEffect(() => {
+    if (!user) return
+
+    const chat = new StreamChat(apiKey)
+    chat.connectUser({ id: user.id, name: user.name }, chatToken)
+    setChatClient(chat)
+
+    const video = new StreamVideoClient(apiKey, videoToken)
+    setVideoClient(video)
+
+    return () => {
+      chat.disconnectUser()
+      video.disconnectUser?.()
+    }
+  }, [user, apiKey, chatToken, videoToken])
+
+  // Loading state for Stream clients
+  if (!chatClient || !videoClient) {
+    return <div className="text-center mt-10">Loading webinar...</div>
+  }
+
+  // Handle different webinar statuses
+  if (
+    webinar.webinarStatus === WebinarStatusEnum.SCHEDULED ||
+    webinar.webinarStatus === WebinarStatusEnum.WAITING_ROOM
+  ) {
+    return <WebinarUpcomingState webinar={webinar} currentUser={user} />
+  }
+
+  if (webinar.webinarStatus === WebinarStatusEnum.LIVE && user) {
+    return (
+      <LiveStreamState
+        apiKey={apiKey}
+        callId={callId}
+        webinar={webinar}
+        user={user}
+        chatClient={chatClient}
+        videoClient={videoClient}
+      />
+    )
+  }
+
+  // Default fallback
+  return <WebinarUpcomingState webinar={webinar} currentUser={user} />
 }
 
 export default RenderWebinar
