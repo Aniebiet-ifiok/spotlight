@@ -109,7 +109,7 @@ const MultiStepForm: React.FC<Props> = ({ steps, onComplete }) => {
             animate={{
               backgroundColor:
                 isCurrent || isCompleted
-                  ? "rgb(147, 51, 234)"
+                  ? "rgb(34, 197, 94) "
                   : "rgb(31, 41, 55)",
             }}
             className="flex items-center justify-center size-8 rounded-full text-white font-semibold"
@@ -144,7 +144,7 @@ const MultiStepForm: React.FC<Props> = ({ steps, onComplete }) => {
                 }}
                 animate={{
                   height: isPast || isCompleted ? "100%" : "0%",
-                  backgroundColor: "rgb(147, 51, 234)",
+                  backgroundColor: "rgb(34, 197, 94)",
                 }}
                 transition={{
                   duration: 0.5,
@@ -163,7 +163,7 @@ const MultiStepForm: React.FC<Props> = ({ steps, onComplete }) => {
               color:
                 isCurrent || isCompleted
                   ? "rgb(255, 255, 255)"
-                  : "rgb(156, 163, 175)",
+                  : "rgb(34, 197, 94)",
             }}
             transition={{ duration: 0.3 }}
             className="font-medium"
